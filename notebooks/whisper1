@@ -1,0 +1,48 @@
+! pip install git+https://github.com/openai/whisper.git -q
+import whisper
+base_model = whisper.load_model("base")
+!wget -O audio.mp3 http://www.moviesoundclips.net/movies1/darkknightrises/darkness.mp3
+from IPython.display import Audio 
+Audio("/content/audio.mp3")
+result = base_model.transcribe("/content/audio.mp3")
+print(result["text"])
+# load audio and pad/trim it to fit 30 seconds
+audio = whisper.load_audio("/content/audio.mp3")
+audio = whisper.pad_or_trim(audio)
+# make log-Mel spectrogram and move to the same device as the model
+mel = whisper.log_mel_spectrogram(audio).to(base_model.device)
+# detect the spoken language
+_, probs = base_model.detect_language(mel)
+print(f"Detected language: {max(probs, key=probs.get)}")
+# decode the audio
+options = whisper.DecodingOptions()
+result = whisper.decode(base_model, mel, options)
+# print the recognized text
+print(result.text)
+! pip install gradio -q
+import gradio as gr 
+import time
+def inference(audio):
+    
+    time.sleep(3)
+    # load audio and pad/trim it to fit 30 seconds
+    audio = whisper.load_audio(audio)
+    audio = whisper.pad_or_trim(audio)
+
+    # make log-Mel spectrogram and move to the same device as the model
+    mel = whisper.log_mel_spectrogram(audio).to(base_model.device)
+
+        # decode the audio
+    options = whisper.DecodingOptions(without_timestamps=True)
+    result = whisper.decode(base_model, mel, options)
+    return result.text
+gr.Interface(
+    title = 'Whisper-app', 
+    fn=inference, 
+    inputs=[
+        gr.inputs.Audio(source="microphone", type="filepath")
+    ],
+    outputs=[
+        "textbox"
+    ],
+    live=True).launch()
